@@ -5,7 +5,24 @@
 
 ---
 
-## 3.1 DTOを導入する
+## 3.1 先にValidation依存関係を追加する
+
+第1章時点で `spring-boot-starter-validation` をまだ追加していない場合は、最初に `pom.xml` を編集します。
+
+`pom.xml` の `<dependencies>` に次を追加:
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+```
+
+追加後は一度 `./mvnw compile` を実行し、依存解決できることを確認してください。
+
+---
+
+## 3.2 DTOを導入する
 
 ### Request DTO
 
@@ -42,9 +59,49 @@ public record ProjectResponse(
 
 ---
 
-## 3.2 ControllerをDTO中心へ変更
+## 3.3 ControllerをDTO中心へ変更
+
+`@PostMapping` だけでなく、`@Valid` / `ResponseEntity` / DTO型を使うために `import` 追加が必要です。
+
+### 追加が必要な主なimport
 
 ```java
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.demo.api.project.ProjectCreateRequest;
+import com.example.demo.api.project.ProjectResponse;
+import com.example.demo.model.Project;
+import com.example.demo.repository.ProjectRepository;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+```
+
+### `ProjectApiController` 全体の更新例
+
+```java
+@RestController
+@RequestMapping("/api/projects")
+@RequiredArgsConstructor
+public class ProjectApiController {
+
+    private final ProjectRepository repository;
+
+    @GetMapping
+    public List<ProjectResponse> findAll() {
+        return repository.findAll().stream()
+            .map(p -> new ProjectResponse(p.getId(), p.getName(), p.getDescription()))
+            .toList();
+    }
+
 @PostMapping
 public ResponseEntity<ProjectResponse> create(@Valid @RequestBody ProjectCreateRequest req) {
     var project = new Project();
@@ -54,15 +111,69 @@ public ResponseEntity<ProjectResponse> create(@Valid @RequestBody ProjectCreateR
     var body = new ProjectResponse(saved.getId(), saved.getName(), saved.getDescription());
     return ResponseEntity.status(HttpStatus.CREATED).body(body);
 }
+}
 ```
 
 この段階で、フロントはJSON契約だけを見れば良くなります。
 
 ---
 
-## 3.3 エラーレスポンスを標準化する
+## 3.4 エラーレスポンスを標準化する
 
-`@RestControllerAdvice` を作って、Validationエラーを同じ形で返します。
+ここでは「新規ファイルを2つ作る」のが対象です。
+
+- `src/main/java/com/example/demo/api/error/ApiErrorResponse.java`
+- `src/main/java/com/example/demo/api/error/GlobalExceptionHandler.java`
+
+### 1) エラーレスポンスDTOを作る
+
+```java
+package com.example.demo.api.error;
+
+import java.util.List;
+
+public record ApiErrorResponse(
+    String code,
+    String message,
+    List<FieldErrorDetail> details
+) {
+    public record FieldErrorDetail(String field, String reason) {}
+}
+```
+
+### 2) `@RestControllerAdvice` を作る
+
+```java
+package com.example.demo.api.error;
+
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
+        List<ApiErrorResponse.FieldErrorDetail> details = ex.getBindingResult()
+            .getFieldErrors()
+            .stream()
+            .map(err -> new ApiErrorResponse.FieldErrorDetail(err.getField(), err.getDefaultMessage()))
+            .toList();
+
+        var body = new ApiErrorResponse(
+            "VALIDATION_ERROR",
+            "入力値に誤りがあります",
+            details
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+}
+```
 
 例:
 
@@ -74,19 +185,6 @@ public ResponseEntity<ProjectResponse> create(@Valid @RequestBody ProjectCreateR
     { "field": "name", "reason": "must not be blank" }
   ]
 }
-```
-
----
-
-## 3.4 `spring-boot-starter-validation` を確認
-
-`@Valid` を使うため、依存関係が未追加なら `pom.xml` に入れます。
-
-```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-validation</artifactId>
-</dependency>
 ```
 
 ---
