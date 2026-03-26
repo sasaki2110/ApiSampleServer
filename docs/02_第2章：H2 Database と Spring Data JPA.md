@@ -110,9 +110,25 @@ spring:
     username: sa
     password:
   jpa:
+    defer-datasource-initialization: true
     hibernate:
       ddl-auto: update
     show-sql: true
+```
+
+`data.sql` で初期データを投入する場合は、`defer-datasource-initialization: true` を入れておくのが安全です。  
+（テーブル作成後に `data.sql` が実行されるため、`Table "PROJECT" not found` を避けられます）
+
+### 2.5.1 初期データ（任意）
+
+`src/main/resources/data.sql`
+
+```sql
+INSERT INTO project (name, description)
+VALUES ('Sample API', 'Spring Boot + H2 initial sample data');
+
+INSERT INTO project (name, description)
+VALUES ('Task Tracker', 'Learning project for JPA and REST API');
 ```
 
 ---
@@ -145,6 +161,18 @@ HTTPステータスも確認する場合:
 ```bash
 curl -i http://localhost:8080/api/projects
 ```
+
+PowerShellでは `curl` が `Invoke-WebRequest` のエイリアスとして動作することがあります。  
+その場合は `curl.exe` を使ってください。
+
+```powershell
+curl.exe -i "http://localhost:8080/api/projects"
+```
+
+期待される結果:
+
+- 初期データなし: `[]`
+- `data.sql` を追加した場合: 登録した件数のJSON配列
 
 ---
 
