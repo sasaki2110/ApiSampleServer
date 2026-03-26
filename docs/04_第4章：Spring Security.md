@@ -391,10 +391,10 @@ curl.exe -i "http://localhost:8080/api/projects"
 
 ### 2) ログインしてトークン取得
 
-```bash
-curl.exe -X POST "http://localhost:8080/api/auth/login" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"username\":\"demo\",\"password\":\"password\"}"
+PowerShell:
+
+```powershell
+curl.exe -i -X POST "http://localhost:8080/api/auth/login" -H "Content-Type: application/json" -d '{"username":"demo","password":"password"}'
 ```
 
 ### 3) Bearer付きでアクセス
