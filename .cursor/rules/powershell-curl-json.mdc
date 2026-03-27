@@ -1,0 +1,21 @@
+---
+description: Use JSON file payload for curl.exe in PowerShell
+alwaysApply: true
+---
+
+# PowerShell curl JSON Rule
+
+When running `curl.exe` in PowerShell with `Content-Type: application/json`, avoid inline JSON strings in command arguments.
+
+Use a JSON file payload instead:
+
+```powershell
+'{"key":"value"}' | Set-Content -NoNewline -Encoding utf8 request.json
+curl.exe -i -X POST "http://localhost:8080/path" -H "Content-Type: application/json" --data-binary "@request.json"
+```
+
+Rationale:
+- PowerShell quoting/escaping can corrupt inline JSON.
+- File payload avoids quote parsing issues and makes requests reproducible.
+
+If a user asks for curl examples on Windows/PowerShell, prefer `--data-binary "@request.json"` format by default.

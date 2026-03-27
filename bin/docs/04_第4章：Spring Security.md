@@ -394,8 +394,7 @@ curl.exe -i "http://localhost:8080/api/projects"
 PowerShell:
 
 ```powershell
-'{"username":"demo","password":"password"}' | Set-Content -NoNewline -Encoding utf8 request.json
-curl.exe -i -X POST "http://localhost:8080/api/auth/login" -H "Content-Type: application/json" --data-binary "@request.json"
+curl.exe -i -X POST "http://localhost:8080/api/auth/login" -H "Content-Type: application/json" -d '{"username":"demo","password":"password"}'
 ```
 
 ### 3) Bearer付きでアクセス
