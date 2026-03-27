@@ -23,15 +23,18 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ProjectApiController {
 
+    // 自動生成されたRepository実装がDIされる（newは不要）。
     private final ProjectRepository repository;
 
     @GetMapping
     public List<Project> findAll() {
+        // Repositoryの標準メソッド。Controllerに定義したため外部APIとして公開される。
         return repository.findAll();
     }
 
     @PostMapping
     public ResponseEntity<ProjectResponse> create(@Valid @RequestBody ProjectCreateRequest req) {
+        // save()は「新規作成/更新」を兼ねるが、ここはID未設定のため新規作成になる。
         var project = new Project();
         project.setName(req.name());
         project.setDescription(req.description());

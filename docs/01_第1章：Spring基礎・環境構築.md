@@ -69,10 +69,10 @@ public class HealthController {
 `spring-boot-starter-security` を入れている場合は、デフォルトで認証が有効になり `401` になることがあります。
 この章では疎通確認を優先するため、`/health` を無認証で許可します。
 
-`src/main/java/com/example/demo/SecurityConfig.java`
+`src/main/java/com/example/demo/config/SecurityConfig.java`
 
 ```java
-package com.example.demo;
+package com.example.demo.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
