@@ -140,12 +140,12 @@ VALUES ('Task Tracker', 'Learning project for JPA and REST API');
 3. `GET /api/projects` がJSON配列で返ることを確認
 4. `http://localhost:8080/h2-console` で `PROJECT` テーブルを確認
 
-> 注記: 前章で `spring-boot-starter-security` 対応として `SecurityConfig` を追加し、`/api/health` だけ `permitAll` にしている場合、この章で作る `/api/projects` は `401` になることがあります。
+> 注記: 前章で `spring-boot-starter-security` 対応として `SecurityConfig` を追加し、`/health` だけ `permitAll` にしている場合、この章で作る `/api/projects` は `401` になることがあります。
 > 疎通確認を優先するなら、`SecurityConfig` の `permitAll` に `/api/projects/**` も追加してください。
 
 ```java
 .authorizeHttpRequests(auth -> auth
-    .requestMatchers("/api/health", "/api/projects/**").permitAll()
+    .requestMatchers("/health", "/api/projects/**").permitAll()
     .anyRequest().authenticated()
 );
 ```

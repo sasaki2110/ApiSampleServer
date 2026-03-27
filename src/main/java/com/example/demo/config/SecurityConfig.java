@@ -41,7 +41,7 @@ public class SecurityConfig {
             // 未認証（トークンなし等）は 401 を返す
             .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/h2-console/**", "/api/health", "/api/auth/**").permitAll()
+                .requestMatchers("/h2-console/**", "/health", "/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().denyAll()

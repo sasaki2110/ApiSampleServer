@@ -42,11 +42,9 @@ import java.time.Instant;
 import java.util.Map;
 
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api")
 public class HealthController {
 
     @GetMapping("/health")
@@ -66,10 +64,10 @@ public class HealthController {
 
 1. `./mvnw compile`
 2. `./mvnw spring-boot:run`
-3. `GET http://localhost:8080/api/health` を呼び、200 + JSON返却を確認
+3. `GET http://localhost:8080/health` を呼び、200 + JSON返却を確認
 
 `spring-boot-starter-security` を入れている場合は、デフォルトで認証が有効になり `401` になることがあります。
-この章では疎通確認を優先するため、`/api/health` を無認証で許可します。
+この章では疎通確認を優先するため、`/health` を無認証で許可します。
 
 `src/main/java/com/example/demo/SecurityConfig.java`
 
@@ -89,7 +87,7 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/health").permitAll()
+                .requestMatchers("/health").permitAll()
                 .anyRequest().authenticated()
             );
         return http.build();
@@ -100,19 +98,19 @@ public class SecurityConfig {
 PowerShell例:
 
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/health"
+Invoke-RestMethod -Uri "http://localhost:8080/health"
 ```
 
 curl例:
 
 ```bash
-curl http://localhost:8080/api/health
+curl http://localhost:8080/health
 ```
 
 HTTPステータスも確認する場合:
 
 ```bash
-curl -i http://localhost:8080/api/health
+curl -i http://localhost:8080/health
 ```
 
 ---
