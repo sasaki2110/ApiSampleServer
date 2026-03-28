@@ -2,8 +2,10 @@ package com.example.demo.api.error;
 
 import java.util.List;
 
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -25,5 +27,15 @@ public class GlobalExceptionHandler {
             details
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler({ObjectOptimisticLockingFailureException.class, OptimisticLockingFailureException.class})
+    public ResponseEntity<ApiErrorResponse> handleOptimisticLock(Exception ex) {
+        var body = new ApiErrorResponse(
+            "CONFLICT",
+            "他の更新と競合しました。最新データを再取得して再実行してください。",
+            List.of()
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 }
