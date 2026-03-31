@@ -2,11 +2,13 @@ package com.example.demo.service;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -61,7 +63,7 @@ public class OrderService {
         Map<String, String> nameByCode = partyRepository.findByCodeIn(codes).stream()
             .collect(Collectors.toMap(p -> p.getCode(), p -> p.getName()));
 
-        return headers.stream().map(h -> toListItem(h, nameByCode)).toList();
+        return headers.stream().flatMap(h -> expandHeaderToLines(h, nameByCode)).toList();
     }
 
     @Transactional
@@ -72,10 +74,19 @@ public class OrderService {
         orderHeaderRepository.deleteById(id);
     }
 
-    private static OrderListItemResponse toListItem(OrderHeader h, Map<String, String> nameByCode) {
-        List<OrderLine> lines = h.getLines();
+    private static Stream<OrderListItemResponse> expandHeaderToLines(
+        OrderHeader h,
+        Map<String, String> nameByCode
+    ) {
+        List<OrderLine> lines = h.getLines().stream()
+            .sorted(Comparator.comparing(OrderLine::getLineNo))
+            .toList();
         int totalAmount = lines.stream().mapToInt(OrderLine::getAmount).sum();
-        return new OrderListItemResponse(
+        int lineCount = lines.size();
+        if (lines.isEmpty()) {
+            return Stream.empty();
+        }
+        return lines.stream().map(line -> new OrderListItemResponse(
             h.getId(),
             h.getOrderNumber(),
             h.getContractPartyCode(),
@@ -86,9 +97,16 @@ public class OrderService {
             h.getDueDate(),
             h.getForecastNumber(),
             totalAmount,
-            lines.size(),
-            h.getCreatedAt()
-        );
+            lineCount,
+            h.getCreatedAt(),
+            line.getId(),
+            line.getLineNo(),
+            line.getProductCode(),
+            line.getProductName(),
+            line.getQuantity(),
+            line.getUnitPrice(),
+            line.getAmount()
+        ));
     }
 
     @Transactional
