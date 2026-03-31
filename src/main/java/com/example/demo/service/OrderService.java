@@ -2,8 +2,14 @@ package com.example.demo.service;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,9 +18,12 @@ import org.springframework.web.server.ResponseStatusException;
 import com.example.demo.api.order.OrderCreateRequest;
 import com.example.demo.api.order.OrderCreateResponse;
 import com.example.demo.api.order.OrderLineRequest;
+import com.example.demo.api.order.OrderListItemResponse;
 import com.example.demo.model.OrderHeader;
 import com.example.demo.model.OrderLine;
 import com.example.demo.repository.OrderHeaderRepository;
+import com.example.demo.repository.OrderHeaderSpecifications;
+import com.example.demo.repository.PartyRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,6 +34,62 @@ public class OrderService {
     private static final DateTimeFormatter ORDER_DATE = DateTimeFormatter.BASIC_ISO_DATE;
 
     private final OrderHeaderRepository orderHeaderRepository;
+    private final PartyRepository partyRepository;
+
+    @Transactional(readOnly = true)
+    public List<OrderListItemResponse> searchOrders(
+        String orderNumber,
+        String contractPartyCode,
+        LocalDate dueDateFrom,
+        LocalDate dueDateTo
+    ) {
+        Specification<OrderHeader> spec = Specification.allOf(
+            OrderHeaderSpecifications.fetchLines(),
+            OrderHeaderSpecifications.orderNumberContains(orderNumber),
+            OrderHeaderSpecifications.contractPartyCodeEquals(contractPartyCode),
+            OrderHeaderSpecifications.dueDateFrom(dueDateFrom),
+            OrderHeaderSpecifications.dueDateTo(dueDateTo)
+        );
+        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
+        List<OrderHeader> headers = orderHeaderRepository.findAll(spec, sort);
+
+        var codes = new HashSet<String>();
+        for (OrderHeader h : headers) {
+            codes.add(h.getContractPartyCode());
+            codes.add(h.getDeliveryPartyCode());
+        }
+        Map<String, String> nameByCode = partyRepository.findByCodeIn(codes).stream()
+            .collect(Collectors.toMap(p -> p.getCode(), p -> p.getName()));
+
+        return headers.stream().map(h -> toListItem(h, nameByCode)).toList();
+    }
+
+    @Transactional
+    public void deleteOrder(Long id) {
+        if (!orderHeaderRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "受注が見つかりません");
+        }
+        orderHeaderRepository.deleteById(id);
+    }
+
+    private static OrderListItemResponse toListItem(OrderHeader h, Map<String, String> nameByCode) {
+        List<OrderLine> lines = h.getLines();
+        int totalAmount = lines.stream().mapToInt(OrderLine::getAmount).sum();
+        return new OrderListItemResponse(
+            h.getId(),
+            h.getOrderNumber(),
+            h.getContractPartyCode(),
+            nameByCode.get(h.getContractPartyCode()),
+            h.getDeliveryPartyCode(),
+            nameByCode.get(h.getDeliveryPartyCode()),
+            h.getDeliveryLocation(),
+            h.getDueDate(),
+            h.getForecastNumber(),
+            totalAmount,
+            lines.size(),
+            h.getCreatedAt()
+        );
+    }
 
     @Transactional
     public OrderCreateResponse createOrder(OrderCreateRequest request) {
