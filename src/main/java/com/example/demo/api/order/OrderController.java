@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -41,6 +42,16 @@ public class OrderController {
     public ResponseEntity<OrderCreateResponse> create(@Valid @RequestBody OrderCreateRequest request) {
         var body = orderService.createOrder(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(body);
+    }
+
+    @GetMapping("/{id}")
+    public OrderDetailResponse get(@PathVariable Long id) {
+        return orderService.getOrder(id);
+    }
+
+    @PutMapping("/{id}")
+    public OrderCreateResponse update(@PathVariable Long id, @Valid @RequestBody OrderCreateRequest request) {
+        return orderService.updateOrder(id, request);
     }
 
     @DeleteMapping("/{id}")

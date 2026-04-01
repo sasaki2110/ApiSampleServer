@@ -19,6 +19,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.demo.api.order.OrderCreateRequest;
 import com.example.demo.api.order.OrderCreateResponse;
+import com.example.demo.api.order.OrderDetailResponse;
+import com.example.demo.api.order.OrderDetailResponse.OrderDetailLineResponse;
 import com.example.demo.api.order.OrderLineRequest;
 import com.example.demo.api.order.OrderListItemResponse;
 import com.example.demo.model.OrderHeader;
@@ -64,6 +66,13 @@ public class OrderService {
             .collect(Collectors.toMap(p -> p.getCode(), p -> p.getName()));
 
         return headers.stream().flatMap(h -> expandHeaderToLines(h, nameByCode)).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public OrderDetailResponse getOrder(Long id) {
+        OrderHeader header = orderHeaderRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "受注が見つかりません"));
+        return toDetailResponse(header);
     }
 
     @Transactional
@@ -117,14 +126,51 @@ public class OrderService {
 
         var header = new OrderHeader();
         header.setOrderNumber(nextOrderNumber());
+        applyHeaderFields(header, request);
+        applyLinesFromRequest(header, request.lines());
+
+        var saved = orderHeaderRepository.save(header);
+        return new OrderCreateResponse(
+            saved.getId(),
+            saved.getOrderNumber(),
+            "受注を登録しました"
+        );
+    }
+
+    @Transactional
+    public OrderCreateResponse updateOrder(Long id, OrderCreateRequest request) {
+        if (request.lines() == null || request.lines().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "明細が1行以上必要です");
+        }
+
+        OrderHeader header = orderHeaderRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "受注が見つかりません"));
+        applyHeaderFields(header, request);
+        applyLinesFromRequest(header, request.lines());
+
+        var saved = orderHeaderRepository.save(header);
+        return new OrderCreateResponse(
+            saved.getId(),
+            saved.getOrderNumber(),
+            "受注を更新しました"
+        );
+    }
+
+    private static void applyHeaderFields(OrderHeader header, OrderCreateRequest request) {
         header.setContractPartyCode(request.contractPartyCode().trim());
         header.setDeliveryPartyCode(request.deliveryPartyCode().trim());
         header.setDeliveryLocation(blankToNull(request.deliveryLocation()));
         header.setDueDate(request.dueDate());
         header.setForecastNumber(blankToNull(request.forecastNumber()));
+    }
 
+    /**
+     * 明細をリクエスト内容で置き換える（既存明細は clear により削除され、新規行が追加される）。
+     */
+    private static void applyLinesFromRequest(OrderHeader header, List<OrderLineRequest> requests) {
+        header.getLines().clear();
         int lineNo = 1;
-        for (OrderLineRequest lineReq : request.lines()) {
+        for (OrderLineRequest lineReq : requests) {
             if (lineReq.productCode() == null || lineReq.productCode().isBlank()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "製品コードが空の明細は登録できません");
             }
@@ -145,12 +191,30 @@ public class OrderService {
             line.setAmount(lineReq.amount());
             header.addLine(line);
         }
+    }
 
-        var saved = orderHeaderRepository.save(header);
-        return new OrderCreateResponse(
-            saved.getId(),
-            saved.getOrderNumber(),
-            "受注を登録しました"
+    private static OrderDetailResponse toDetailResponse(OrderHeader h) {
+        List<OrderDetailLineResponse> lines = h.getLines().stream()
+            .sorted(Comparator.comparing(OrderLine::getLineNo))
+            .map(l -> new OrderDetailLineResponse(
+                l.getId(),
+                l.getLineNo(),
+                l.getProductCode(),
+                l.getProductName(),
+                l.getQuantity(),
+                l.getUnitPrice(),
+                l.getAmount()
+            ))
+            .toList();
+        return new OrderDetailResponse(
+            h.getId(),
+            h.getOrderNumber(),
+            h.getContractPartyCode(),
+            h.getDeliveryPartyCode(),
+            h.getDeliveryLocation(),
+            h.getDueDate(),
+            h.getForecastNumber(),
+            lines
         );
     }
 
